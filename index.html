@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WordStrike!</title>
+  
+  <!-- Firebase JS SDK (Compat mode v10) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <style>
+    /* ==========================================
+       全体スタイル（ダークテーマ）
+       ========================================== */
+    :root {
+      --bg-color: #11131e;
+      --card-bg: #1c1f30;
+      --card-border: #2e344e;
+      --accent-color: #00f2fe;
+      --accent-pink: #ff2a70;
+      --gold-color: #ffd700;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --disabled-bg: #2d3748;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 15px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    h1, h2, h3 {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .title-logo {
+      font-size: 2.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent-color), var(--accent-pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+      margin-bottom: 20px;
+    }
+
+    .screen {
+      display: none;
+    }
+    .screen.active {
+      display: block;
+    }
+
+    /* フォーム & ボタン */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: #111322;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent-color);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #2b32b2, #1488cc);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(20, 136, 204, 0.3);
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(20, 136, 204, 0.5);
+    }
+
+    button:disabled {
+      background: var(--disabled-bg);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    button.btn-danger {
+      background: linear-gradient(135deg, #cb2d3e, #ef473a);
+      box-shadow: 0 4px 12px rgba(239, 71, 58, 0.3);
+    }
+
+    button.btn-secondary {
+      background: #334155;
+      box-shadow: none;
+    }
+
+    /* エラーメッセージ */
+    .error-msg {
+      color: var(--accent-pink);
+      font-size: 0.85rem;
+      margin-top: 6px;
+      text-align: center;
+      min-height: 1.2em;
+    }
+
+    /* 待機画面 */
+    .player-list {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    .player-slot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #131525;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .player-badge {
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--accent-color);
+      color: #000;
+      font-size: 0.8rem;
+      margin-right: 10px;
+    }
+
+    .rule-box {
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 16px;
+      background: #141727;
+      margin-bottom: 20px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+
+    /* 50音キーボード */
+    .kana-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin: 16px 0;
+      direction: rtl; /* 日本語の五十音表っぽく右から左へ並べる */
+    }
+
+    .kana-key {
+      background: #23283f;
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 10px 0;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
+      direction: ltr;
+      position: relative;
+    }
+
+    .kana-key:hover:not(.guessed):not(:disabled) {
+      background: var(--accent-color);
+      color: #000;
+    }
+
+    .kana-key.guessed {
+      background: #131522;
+      color: #475569;
+      cursor: not-allowed;
+      border-color: #1e293b;
+    }
+
+    .kana-key.guessed::after {
+      content: "×";
+      position: absolute;
+      color: var(--accent-pink);
+      font-size: 1.2rem;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: bold;
+    }
+
+    .kana-key.empty {
+      visibility: hidden;
+    }
+
+    /* ゲーム画面 */
+    .game-status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #141727;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+    }
+
+    .turn-badge {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--accent-color);
+    }
+
+    /* EXTRAターンアニメーション */
+    .turn-badge.extra {
+      color: var(--gold-color);
+      text-shadow: 0 0 10px var(--gold-color);
+      animation: extraFlash 1.5s ease-in-out;
+    }
+
+    @keyframes extraFlash {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      15%, 45%, 75% { opacity: 0.1; transform: scale(1.3); }
+      30%, 60%, 90% { opacity: 1; transform: scale(1.1); }
+    }
+
+    .turn-indicator {
+      text-align: center;
+      margin: 10px 0;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    .my-word-box {
+      text-align: center;
+      padding: 10px;
+      background: rgba(0, 242, 254, 0.1);
+      border: 1px dashed var(--accent-color);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 1.1rem;
+      font-weight: bold;
+    }
+
+    .player-word-display {
+      font-family: monospace;
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+      color: var(--accent-color);
+    }
+
+    .input-guess-container {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    .input-guess-container input {
+      width: 80px;
+      text-align: center;
+      font-size: 1.3rem;
+    }
+
+    /* リザルト画面 */
+    .result-rank-list {
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    .result-rank-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #131525;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .result-rank-item.winner {
+      border: 2px solid var(--gold-color);
+      background: rgba(255, 215, 0, 0.1);
+    }
+
+    .rematch-list {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* 設定ボタン */
+    .config-btn-fixed {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: none;
+      padding: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <button class="config-btn-fixed" onclick="openConfigModal()" title="Firebase設定" hidden>⚙</button>
+
+    <!-- 1. タイトル画面 -->
+    <div id="screen-title" class="screen active">
+      <h1 class="title-logo">WordStrike!</h1>
+      <p style="text-align: center; color: var(--text-muted); margin-bottom: 24px;">2〜4人 対戦型ワード予想バトル</p>
+
+      <div class="form-group">
+        <label for="player-name-input">プレイヤー名を入力してください</label>
+        <input type="text" id="player-name-input" placeholder="例: プレイヤー1" maxlength="10">
+      </div>
+
+      <div class="btn-group">
+        <button onclick="submitTitleName()">決定</button>
+      </div>
+    </div>
+
+    <!-- 2. ルームID入力画面 -->
+    <div id="screen-room" class="screen">
+      <h2>ルームID入力</h2>
+      <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">一緒に遊びたいプレイヤーと同じIDを入力してください</p>
+
+      <div class="form-group">
+        <input type="text" id="room-id-input" placeholder="例: room123" maxlength="15">
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-secondary" onclick="showScreen('screen-title')">戻る</button>
+        <button onclick="joinRoom()">入室</button>
+      </div>
+    </div>
+
+    <!-- 3. 待機画面 -->
+    <div id="screen-lobby" class="screen">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2>待機画面</h2>
+        <span style="font-weight: bold; color: var(--accent-color);" id="display-room-id">部屋ID: ---</span>
+      </div>
+
+      <ul class="player-list" id="lobby-player-list"></ul>
+
+      <div class="rule-box">
+        <h3>--- ルール ---</h3>
+        <div>お題：<span id="rule-display-theme">ランダム</span></div>
+        <div>持ち時間：<span id="rule-display-time">無制限</span></div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-danger" onclick="leaveRoom()">退室</button>
+        <button id="btn-open-rule" class="btn-secondary" onclick="openRuleModal()">ルール</button>
+        <button id="btn-start-game" onclick="startGame()">開始</button>
+      </div>
+    </div>
+
+    <!-- 4. ゲーム画面 -->
+    <div id="screen-game" class="screen">
+      <div class="game-status-bar">
+        <div>お題：<span id="game-display-theme" style="font-weight: bold;">---</span></div>
+        <div id="game-turn-badge" class="turn-badge">ターン 1</div>
+      </div>
+
+      <div class="turn-indicator" id="turn-indicator"></div>
+      <div style="text-align: center; color: var(--accent-pink); font-size: 0.9rem; margin-bottom: 12px;" id="timer-display"></div>
+
+      <!-- 他プレイヤー情報一覧 -->
+      <ul class="player-list" id="game-player-list"></ul>
+
+      <div class="my-word-box">
+        あなたのワード：「<span id="my-word-display">---</span>」
+      </div>
+
+      <!-- 50音キーボード -->
+      <div class="kana-grid" id="kana-grid"></div>
+
+      <!-- 攻撃入力エリア -->
+      <div id="attack-input-area" style="margin-top: 15px;">
+        <div class="input-guess-container">
+          <input type="text" id="guess-char-input" maxlength="1" placeholder="文字">
+          <button onclick="submitGuess()">送信</button>
+        </div>
+        <div class="error-msg" id="guess-error-msg"></div>
+      </div>
+    </div>
+
+    <!-- 5. リザルト画面 -->
+    <div id="screen-result" class="screen">
+      <h2>ゲーム結果</h2>
+
+      <div class="turn-indicator" id="result-winner-text" style="color: var(--gold-color); font-size: 1.3rem; margin-bottom: 16px;"></div>
+
+      <ul class="result-rank-list" id="result-rank-list"></ul>
+
+      <div class="my-word-box">
+        あなたのワード：「<span id="result-my-word">---</span>」
+      </div>
+
+      <div class="kana-grid" id="result-kana-grid"></div>
+
+      <div class="rule-box" style="text-align: center;">
+        お題：<span id="result-theme">---</span> &nbsp;|&nbsp; 最終ターン: <span id="result-final-turn">--</span>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-danger" onclick="leaveRoom()">退室</button>
+        <button onclick="clickRematch()" id="btn-rematch">再戦</button>
+      </div>
+
+      <div class="rematch-list" id="rematch-player-list"></div>
+    </div>
+
+  </div>
+
+  <!-- モーダル：ルール編集 -->
+  <div id="modal-rule" class="modal-overlay">
+    <div class="modal-content">
+      <h3>ルール編集</h3>
+      
+      <div class="form-group">
+        <label>お題の設定</label>
+        <div>
+          <label><input type="radio" name="theme-option" value="random" checked onchange="toggleCustomThemeInput()"> ランダムでお題を決定</label>
+          <label><input type="radio" name="theme-option" value="custom" onchange="toggleCustomThemeInput()"> 自分でお題を入力する</label>
+        </div>
+        <input type="text" id="custom-theme-input" placeholder="お題を入力（例: たべもの）" style="margin-top: 8px; display: none;">
+      </div>
+
+      <div class="form-group">
+        <label>持ち時間（1ターン）</label>
+        <select id="time-limit-select" style="width: 100%; padding: 10px; background: #111322; color: #fff; border: 1px solid var(--card-border); border-radius: 8px;">
+          <option value="0">無制限</option>
+          <option value="30">30秒</option>
+          <option value="60">60秒</option>
+        </select>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-secondary" onclick="closeRuleModal()">キャンセル</button>
+        <button onclick="saveRules()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- モーダル：ワード決定 -->
+  <div id="modal-word" class="modal-overlay">
+    <div class="modal-content">
+      <h3 style="color: var(--accent-color);">ワード決定</h3>
+      <p style="text-align: center; margin-bottom: 10px;">今回のお題：<strong id="word-modal-theme" style="font-size: 1.2rem;">---</strong></p>
+      
+      <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
+        ・ひらがな2〜7文字で入力<br>
+        ・「゛゜」は自動除去され、小文字は大文字に自動変換されます<br>
+        （例: パイナップル → はいなつふる）
+      </p>
+
+      <div class="form-group">
+        <input type="text" id="word-input" placeholder="単語を入力" oninput="onWordInputChanged(this.value)">
+        <div style="font-size: 0.85rem; color: var(--accent-color); margin-top: 4px;" id="word-preview">変換後のワード: ---</div>
+        <div class="error-msg" id="word-error-msg"></div>
+      </div>
+
+      <div class="btn-group">
+        <button id="btn-submit-word" onclick="submitMyWord()">決定</button>
+      </div>
+      <div id="word-waiting-msg" style="text-align: center; color: var(--text-muted); margin-top: 12px; display: none;">
+        他のプレイヤーの入力完了を待っています……
+      </div>
+    </div>
+  </div>
+
+  <!-- モーダル：Firebase設定 -->
+  <div id="modal-config" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Firebase 設定</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+        Realtime Databaseの情報を入力してください。
+      </p>
+      <div class="form-group">
+        <label>databaseURL</label>
+        <input type="text" id="cfg-db-url" placeholder="https://xxx-default-rtdb.firebaseio.com">
+      </div>
+      <div class="form-group">
+        <label>apiKey (任意)</label>
+        <input type="text" id="cfg-api-key" placeholder="AIzaSy...">
+      </div>
+      <div class="btn-group">
+        <button class="btn-secondary" onclick="closeConfigModal()">閉じる</button>
+        <button onclick="saveFirebaseConfigFromModal()">保存して初期化</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. FIREBASE CONFIGURATION
+       ========================================================================= */
+    const firebaseConfig = {
+        apiKey: "AIzaSyCFmwQeIlsT5WSKYVya6Bff2TkN6CPbx7A",
+        authDomain: "word-strike-battle-58711.firebaseapp.com",
+        databaseURL: "https://word-strike-battle-58711-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "word-strike-battle-58711",
+        storageBucket: "word-strike-battle-58711.firebasestorage.app",
+        messagingSenderId: "583056343284",
+        appId: "1:583056343284:web:c462a8feb3faa74315dea1"
+    };
+
+    const RANDOM_THEMES = [
+      "食べもの", "飲みもの", "動物", "乗り物", "文房具",
+      "コンビニで買えるもの", "架空の生き物", "マンガのタイトル",
+      "家にあるもの", "お弁当のおかず", "夏といえば", "チェーン店", "好きなもの"
+    ];
+
+    const KANA_COLUMNS = [
+      ['あ','い','う','え','お'],
+      ['か','き','く','け','こ'],
+      ['さ','し','す','せ','そ'],
+      ['た','ち','つ','て','と'],
+      ['な','に','ぬ','ね','の'],
+      ['は','ひ','ふ','へ','ほ'],
+      ['ま','み','む','め','も'],
+      ['や','','ゆ','','よ'],
+      ['ら','り','る','れ','ろ'],
+      ['わ','を','ん','','ー']
+    ];
+
+    /* =========================================================================
+       2. 共通状態管理
+       ========================================================================= */
+    let db = null;
+    let myPlayerId = "";
+    let myPlayerName = "";
+    let currentRoomId = "";
+    let roomRef = null;
+    let roomData = null;
+    let serverTimeOffset = 0;
+    let timerInterval = null;
+
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedName = localStorage.getItem("wordstrike_name");
+      if (savedName) {
+        document.getElementById("player-name-input").value = savedName;
+      }
+      initFirebase();
+    });
+
+    function initFirebase() {
+      const savedDbUrl = localStorage.getItem("wordstrike_db_url");
+      const savedApiKey = localStorage.getItem("wordstrike_api_key");
+
+      const activeConfig = { ...firebaseConfig };
+      if (savedDbUrl) activeConfig.databaseURL = savedDbUrl;
+      if (savedApiKey) activeConfig.apiKey = savedApiKey;
+
+      if (!activeConfig.databaseURL) {
+        return false;
+      }
+
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(activeConfig);
+        }
+        db = firebase.database();
+        db.ref(".info/serverTimeOffset").on("value", (snap) => {
+          serverTimeOffset = snap.val() || 0;
+        });
+        return true;
+      } catch (e) {
+        alert("Firebaseの初期化に失敗しました。\n" + e.message);
+        return false;
+      }
+    }
+
+    function getNow() {
+      return Date.now() + serverTimeOffset;
+    }
+
+    /* =========================================================================
+       3. 画面遷移 & モーダル
+       ========================================================================= */
+    function showScreen(screenId) {
+      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+      document.getElementById(screenId).classList.add("active");
+    }
+
+    function openConfigModal() {
+      document.getElementById("cfg-db-url").value = localStorage.getItem("wordstrike_db_url") || firebaseConfig.databaseURL;
+      document.getElementById("cfg-api-key").value = localStorage.getItem("wordstrike_api_key") || firebaseConfig.apiKey;
+      document.getElementById("modal-config").classList.add("open");
+    }
+    function closeConfigModal() {
+      document.getElementById("modal-config").classList.remove("open");
+    }
+    function saveFirebaseConfigFromModal() {
+      const url = document.getElementById("cfg-db-url").value.trim();
+      const key = document.getElementById("cfg-api-key").value.trim();
+      if (!url) {
+        alert("databaseURL を入力してください。");
+        return;
+      }
+      localStorage.setItem("wordstrike_db_url", url);
+      localStorage.setItem("wordstrike_api_key", key);
+      closeConfigModal();
+      location.reload();
+    }
+
+    /* =========================================================================
+       4. 入室・退室処理（自動削除・上書き対応）
+       ========================================================================= */
+    function submitTitleName() {
+      const name = document.getElementById("player-name-input").value.trim();
+      if (!name) {
+        alert("名前を入力してください。");
+        return;
+      }
+      myPlayerName = name;
+      localStorage.setItem("wordstrike_name", name);
+
+      if (!myPlayerId) {
+        myPlayerId = "p_" + Math.random().toString(36).substr(2, 9);
+      }
+
+      showScreen("screen-room");
+    }
+
+    function joinRoom() {
+      if (!db && !initFirebase()) {
+        openConfigModal();
+        return;
+      }
+
+      const rId = document.getElementById("room-id-input").value.trim();
+      if (!rId) {
+        alert("ルームIDを入力してください。");
+        return;
+      }
+      currentRoomId = rId;
+
+      roomRef = db.ref(`rooms/${currentRoomId}`);
+
+      // 部屋の存在・状態を確認して入室
+      roomRef.transaction((current) => {
+        const pKeys = (current && current.players) ? Object.keys(current.players) : [];
+        const isDisbandedOrEmpty = !current || current.state === "disbanded" || pKeys.length === 0;
+
+        // 解散済み、または誰もいない部屋なら「新規作成」として上書き
+        if (isDisbandedOrEmpty) {
+          return {
+            state: "lobby",
+            rule: { themeType: "random", customTheme: "", timeLimit: 0 },
+            players: {
+              [myPlayerId]: {
+                id: myPlayerId,
+                name: myPlayerName,
+                order: 1,
+                joinedAt: getNow(),
+                word: "",
+                wordSubmitted: false,
+                isEliminated: false
+              }
+            }
+          };
+        } else {
+          // 既存ルームに参加
+          if (current.state !== "lobby") {
+            return; // プレイ中は入室不可
+          }
+          if (pKeys.length >= 4) {
+            return; // 満員
+          }
+          if (!current.players[myPlayerId]) {
+            const newOrder = pKeys.length + 1;
+            current.players[myPlayerId] = {
+              id: myPlayerId,
+              name: myPlayerName,
+              order: newOrder,
+              joinedAt: getNow(),
+              word: "",
+              wordSubmitted: false,
+              isEliminated: false
+            };
+          }
+          return current;
+        }
+      }, (error, committed) => {
+        if (error || !committed) {
+          alert("入室できませんでした（満員かゲーム中です）。");
+        } else {
+          listenToRoom();
+          setupDisconnectHandler();
+          showScreen("screen-lobby");
+        }
+      });
+    }
+
+    function setupDisconnectHandler() {
+      const pRef = db.ref(`rooms/${currentRoomId}/players/${myPlayerId}`);
+      pRef.onDisconnect().remove();
+    }
+
+    function leaveRoom() {
+      if (roomRef && myPlayerId) {
+        db.ref(`rooms/${currentRoomId}/players/${myPlayerId}`).onDisconnect().cancel();
+        
+        const players = (roomData && roomData.players) ? Object.values(roomData.players) : [];
+        const isLastPlayer = players.length <= 1;
+
+        // ゲーム中の途中退出、または自分が最後の1人の場合は部屋自体を消去
+        if (isLastPlayer || (roomData && roomData.state !== "lobby")) {
+          roomRef.remove();
+        } else {
+          db.ref(`rooms/${currentRoomId}/players/${myPlayerId}`).remove();
+        }
+      }
+
+      if (roomRef) roomRef.off();
+      roomRef = null;
+      roomData = null;
+      showScreen("screen-title");
+    }
+
+    /* =========================================================================
+       5. リアルタイムリスナー
+       ========================================================================= */
+    function listenToRoom() {
+      document.getElementById("display-room-id").textContent = "部屋ID: " + currentRoomId;
+
+      roomRef.on("value", (snap) => {
+        const val = snap.val();
+        if (!val) {
+          if (roomData && roomData.state !== "lobby") {
+            alert("部屋が解散されました。");
+          }
+          leaveRoom();
+          return;
+        }
+
+        roomData = val;
+
+        if (!roomData.players || !roomData.players[myPlayerId]) {
+          alert("部屋から退出しました。");
+          leaveRoom();
+          return;
+        }
+
+        // 解散状態の場合、データを完全に削除してから戻る
+        if (roomData.state === "disbanded") {
+          alert("プレイヤーの接続が切れたため、部屋が解散されました。");
+          roomRef.remove();
+          leaveRoom();
+          return;
+        }
+
+        checkAndReorderPlayers();
+
+        switch (roomData.state) {
+          case "lobby":
+            renderLobby();
+            break;
+          case "word_input":
+            renderWordInputModal();
+            break;
+          case "playing":
+            renderGameScreen();
+            break;
+          case "result":
+            renderResultScreen();
+            break;
+        }
+      });
+    }
+
+    function checkAndReorderPlayers() {
+      if (roomData.state !== "lobby") return;
+
+      const players = Object.values(roomData.players || {});
+      players.sort((a, b) => a.order - b.order);
+
+      let needFix = false;
+      players.forEach((p, idx) => {
+        if (p.order !== idx + 1) needFix = true;
+      });
+
+      const isHost = players.length > 0 && players[0].id === myPlayerId;
+
+      if (needFix && isHost) {
+        const updatedPlayers = {};
+        players.forEach((p, idx) => {
+          p.order = idx + 1;
+          updatedPlayers[p.id] = p;
+        });
+        roomRef.child("players").set(updatedPlayers);
+      }
+    }
+
+    /* =========================================================================
+       6. 待機画面 & ルール
+       ========================================================================= */
+    function renderLobby() {
+      showScreen("screen-lobby");
+      document.getElementById("modal-word").classList.remove("open");
+
+      const players = Object.values(roomData.players || {});
+      players.sort((a, b) => a.order - b.order);
+
+      const isHost = players.length > 0 && players[0].id === myPlayerId;
+
+      document.getElementById("btn-open-rule").style.display = isHost ? "inline-block" : "none";
+      const startBtn = document.getElementById("btn-start-game");
+      startBtn.style.display = isHost ? "inline-block" : "none";
+      startBtn.disabled = players.length < 2;
+
+      const listEl = document.getElementById("lobby-player-list");
+      listEl.innerHTML = "";
+
+      for (let i = 1; i <= 4; i++) {
+        const p = players.find(x => x.order === i);
+        const li = document.createElement("li");
+        li.className = "player-slot";
+        if (p) {
+          li.innerHTML = `
+            <div><span class="player-badge">${i}P</span> <strong>${escapeHtml(p.name)}</strong></div>
+            <span style="font-size:0.8rem; color:var(--text-muted);">${p.id === myPlayerId ? '(あなた)' : ''}</span>
+          `;
+        } else {
+          li.innerHTML = `
+            <div><span class="player-badge" style="background:var(--disabled-bg); color:var(--text-muted);">${i}P</span>
+            <span style="color: var(--text-muted);">参加を待っています……</span></div>
+          `;
+        }
+        listEl.appendChild(li);
+      }
+
+      const rule = roomData.rule || {};
+      document.getElementById("rule-display-theme").textContent =
+        rule.themeType === "custom" ? (rule.customTheme || "未設定") : "ランダム";
+      document.getElementById("rule-display-time").textContent =
+        rule.timeLimit > 0 ? `${rule.timeLimit}秒` : "無制限";
+    }
+
+    function openRuleModal() {
+      const rule = roomData.rule || {};
+      const isCustom = rule.themeType === "custom";
+      document.querySelectorAll('input[name="theme-option"]').forEach(r => {
+        r.checked = (r.value === (isCustom ? "custom" : "random"));
+      });
+      document.getElementById("custom-theme-input").value = rule.customTheme || "";
+      document.getElementById("time-limit-select").value = rule.timeLimit || 0;
+      toggleCustomThemeInput();
+
+      document.getElementById("modal-rule").classList.add("open");
+    }
+
+    function closeRuleModal() {
+      document.getElementById("modal-rule").classList.remove("open");
+    }
+
+    function toggleCustomThemeInput() {
+      const isCustom = document.querySelector('input[name="theme-option"]:checked').value === "custom";
+      document.getElementById("custom-theme-input").style.display = isCustom ? "block" : "none";
+    }
+
+    function saveRules() {
+      const themeType = document.querySelector('input[name="theme-option"]:checked').value;
+      const customTheme = document.getElementById("custom-theme-input").value.trim();
+      const timeLimit = parseInt(document.getElementById("time-limit-select").value, 10);
+
+      if (themeType === "custom" && !customTheme) {
+        alert("お題を入力してください。");
+        return;
+      }
+
+      roomRef.child("rule").set({ themeType, customTheme, timeLimit });
+      closeRuleModal();
+    }
+
+    function startGame() {
+      const players = Object.values(roomData.players || {});
+      if (players.length < 2) {
+        alert("2人以上で開始してください。");
+        return;
+      }
+
+      let theme = "";
+      const rule = roomData.rule || {};
+      if (rule.themeType === "custom" && rule.customTheme) {
+        theme = rule.customTheme;
+      } else {
+        theme = RANDOM_THEMES[Math.floor(Math.random() * RANDOM_THEMES.length)];
+      }
+
+      const firstPlayer = players[Math.floor(Math.random() * players.length)];
+
+      const updates = {};
+      updates["/state"] = "word_input";
+      updates["/currentTheme"] = theme;
+      updates["/turn"] = 1;
+      updates["/currentTurnPlayerId"] = firstPlayer.id;
+      updates["/guessedLetters"] = [];
+      updates["/isExtraTurn"] = false;
+      updates["/rematchPlayers"] = null;
+
+      players.forEach(p => {
+        updates[`/players/${p.id}/word`] = "";
+        updates[`/players/${p.id}/wordSubmitted`] = false;
+        updates[`/players/${p.id}/isEliminated`] = false;
+        updates[`/players/${p.id}/eliminatedRank`] = null;
+      });
+
+      roomRef.update(updates);
+    }
+
+    /* =========================================================================
+       7. ワード決定 & 正規化
+       ========================================================================= */
+    function renderWordInputModal() {
+      showScreen("screen-game");
+      document.getElementById("modal-word").classList.add("open");
+      document.getElementById("word-modal-theme").textContent = roomData.currentTheme || "";
+
+      const myP = roomData.players[myPlayerId];
+      if (myP && myP.wordSubmitted) {
+        document.getElementById("btn-submit-word").disabled = true;
+        document.getElementById("word-waiting-msg").style.display = "block";
+      } else {
+        document.getElementById("btn-submit-word").disabled = false;
+        document.getElementById("word-waiting-msg").style.display = "none";
+      }
+
+      const players = Object.values(roomData.players || {});
+      const allSubmitted = players.every(p => p.wordSubmitted);
+      const isHost = players.length > 0 && players[0].order === myP?.order;
+
+      if (allSubmitted && isHost) {
+        roomRef.update({
+          state: "playing",
+          turnStartTime: getNow()
+        });
+      }
+    }
+
+    function normalizeWord(str) {
+      if (!str) return "";
+      let res = "";
+      
+      for (let i = 0; i < str.length; i++) {
+        let code = str.charCodeAt(i);
+        if (code >= 0x30a1 && code <= 0x30f6) {
+          res += String.fromCharCode(code - 0x60);
+        } else {
+          res += str[i];
+        }
+      }
+
+      const map = {
+        'が':'か', 'ぎ':'き', 'ぐ':'く', 'げ':'け', 'ご':'こ',
+        'ざ':'さ', 'じ':'し', 'ず':'す', 'ぜ':'せ', 'ぞ':'そ',
+        'だ':'た', 'ぢ':'ち', 'づ':'つ', 'で':'て', 'ど':'と',
+        'ば':'は', 'び':'ひ', 'ぶ':'ふ', 'べ':'へ', 'ぼ':'ほ',
+        'ぱ':'は', 'ぴ':'ひ', 'ぷ':'ふ', 'ぺ':'へ', 'ぽ':'ほ',
+        'ヴ':'う', 'ゔ':'う',
+        'ぁ':'あ', 'ぃ':'い', 'ぅ':'う', 'ぇ':'え', 'ぉ':'お',
+        'っ':'つ', 'ゃ':'や', 'ゅ':'ゆ', 'ょ':'よ', 'ゎ':'わ'
+      };
+
+      let cleaned = "";
+      for (let i = 0; i < res.length; i++) {
+        let ch = res[i];
+        let mapped = map[ch] || ch;
+        if ((mapped >= 'あ' && mapped <= 'ん') || mapped === 'ー') {
+          cleaned += mapped;
+        }
+      }
+      return cleaned;
+    }
+
+    function onWordInputChanged(val) {
+      const converted = normalizeWord(val);
+      document.getElementById("word-preview").textContent = `変換後のワード: ${converted || '---'}`;
+      document.getElementById("word-error-msg").textContent = "";
+    }
+
+    function submitMyWord() {
+      const rawVal = document.getElementById("word-input").value;
+      const converted = normalizeWord(rawVal);
+      const errorEl = document.getElementById("word-error-msg");
+
+      if (!converted) {
+        errorEl.textContent = "使用できない文字が含まれています！";
+        return;
+      }
+      if (converted.length < 2 || converted.length > 7) {
+        errorEl.textContent = "2〜7文字で入力してください！";
+        return;
+      }
+
+      roomRef.child(`players/${myPlayerId}`).update({
+        word: converted,
+        wordSubmitted: true
+      });
+    }
+
+    /* =========================================================================
+       8. ゲームメイン処理
+       ========================================================================= */
+    function renderGameScreen() {
+      showScreen("screen-game");
+      document.getElementById("modal-word").classList.remove("open");
+
+      const players = Object.values(roomData.players || {});
+      players.sort((a, b) => a.order - b.order);
+
+      const guessed = roomData.guessedLetters || [];
+      const turnPlayer = players.find(p => p.id === roomData.currentTurnPlayerId);
+      const isMyTurn = (roomData.currentTurnPlayerId === myPlayerId);
+
+      document.getElementById("game-display-theme").textContent = roomData.currentTheme || "";
+      const turnBadge = document.getElementById("game-turn-badge");
+
+      if (roomData.isExtraTurn) {
+        turnBadge.textContent = "EXTRA";
+        turnBadge.className = "turn-badge extra";
+      } else {
+        turnBadge.textContent = `ターン ${roomData.turn || 1}`;
+        turnBadge.className = "turn-badge";
+      }
+
+      const indicator = document.getElementById("turn-indicator");
+      if (turnPlayer) {
+        indicator.textContent = `${turnPlayer.name} のターンです`;
+        indicator.style.color = isMyTurn ? "var(--accent-color)" : "var(--text-main)";
+      }
+
+      startTimerCountdown();
+
+      const pListEl = document.getElementById("game-player-list");
+      pListEl.innerHTML = "";
+
+      players.forEach(p => {
+        const li = document.createElement("li");
+        li.className = "player-slot";
+
+        // マスク表示（常に7文字固定）
+        let maskedWord = "";
+        for (let i = 0; i < 7; i++) {
+          if (i < p.word.length) {
+            const ch = p.word[i];
+            maskedWord += guessed.includes(ch) ? ch : "？";
+          } else {
+            maskedWord += "？";
+          }
+        }
+
+        const statusTag = p.isEliminated ? `<span style="color:var(--accent-pink); font-size:0.8rem;">[脱落]</span>` : '';
+
+        li.innerHTML = `
+          <div><span class="player-badge">${p.order}P</span> <strong>${escapeHtml(p.name)}</strong> ${statusTag}</div>
+          <div class="player-word-display">${maskedWord}</div>
+        `;
+        pListEl.appendChild(li);
+      });
+
+      const myP = roomData.players[myPlayerId];
+      document.getElementById("my-word-display").textContent = myP ? myP.word : "---";
+
+      renderKanaGrid("kana-grid", guessed, isMyTurn && !myP?.isEliminated, (char) => {
+        document.getElementById("guess-char-input").value = char;
+      });
+
+      const attackArea = document.getElementById("attack-input-area");
+      attackArea.style.display = (isMyTurn && !myP?.isEliminated) ? "block" : "none";
+    }
+
+    function renderKanaGrid(containerId, guessedList, isInteractive, onKeyClick) {
+      const gridEl = document.getElementById(containerId);
+      gridEl.innerHTML = "";
+
+      KANA_COLUMNS.forEach(col => {
+        col.forEach(char => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          if (!char) {
+            btn.className = "kana-key empty";
+          } else {
+            const isGuessed = guessedList.includes(char);
+            btn.className = `kana-key ${isGuessed ? 'guessed' : ''}`;
+            btn.textContent = char;
+
+            if (isInteractive && !isGuessed) {
+              btn.onclick = () => onKeyClick(char);
+            } else {
+              btn.disabled = true;
+            }
+          }
+          gridEl.appendChild(btn);
+        });
+      });
+    }
+
+    function startTimerCountdown() {
+      if (timerInterval) clearInterval(timerInterval);
+
+      const timerEl = document.getElementById("timer-display");
+      const timeLimit = roomData.rule?.timeLimit || 0;
+
+      if (timeLimit <= 0) {
+        timerEl.textContent = "残り時間: 無制限";
+        return;
+      }
+
+      function update() {
+        if (!roomData || roomData.state !== "playing") return;
+        const elapsed = Math.floor((getNow() - (roomData.turnStartTime || getNow())) / 1000);
+        const remaining = Math.max(0, timeLimit - elapsed);
+
+        timerEl.textContent = `残り時間: ${remaining} 秒`;
+
+        if (remaining <= 0) {
+          const players = Object.values(roomData.players || {});
+          players.sort((a,b) => a.order - b.order);
+          const isHost = players.length > 0 && players[0].id === myPlayerId;
+
+          if (myPlayerId === roomData.currentTurnPlayerId || isHost) {
+            handleTurnSkip();
+          }
+        }
+      }
+
+      update();
+      timerInterval = setInterval(update, 500);
+    }
+
+    function submitGuess() {
+      const inputEl = document.getElementById("guess-char-input");
+      const errEl = document.getElementById("guess-error-msg");
+      errEl.textContent = "";
+
+      const rawChar = inputEl.value;
+      const char = normalizeWord(rawChar);
+
+      if (!char || char.length !== 1) {
+        errEl.textContent = "その文字は予想できません！";
+        return;
+      }
+
+      const guessed = roomData.guessedLetters || [];
+      if (guessed.includes(char)) {
+        errEl.textContent = "その文字は既に予想済みです！";
+        return;
+      }
+
+      inputEl.value = "";
+      processTurnGuess(char);
+    }
+
+    function processTurnGuess(char) {
+      const players = Object.values(roomData.players || {});
+      players.sort((a, b) => a.order - b.order);
+
+      const guessed = [...(roomData.guessedLetters || []), char];
+
+      const hitOthers = players.some(p =>
+        p.id !== myPlayerId && !p.isEliminated && p.word.includes(char)
+      );
+
+      const newlyEliminated = [];
+      players.forEach(p => {
+        if (!p.isEliminated) {
+          const allRevealed = p.word.split('').every(ch => guessed.includes(ch));
+          if (allRevealed) {
+            newlyEliminated.push(p);
+          }
+        }
+      });
+
+      if (newlyEliminated.length > 0) {
+        newlyEliminated.forEach(p => {
+          p.wordLength = p.word.length;
+          p.isSelfDestruct = (p.id === myPlayerId);
+        });
+
+        newlyEliminated.sort((a, b) => {
+          if (a.wordLength !== b.wordLength) {
+            return a.wordLength - b.wordLength;
+          }
+          if (a.isSelfDestruct !== b.isSelfDestruct) {
+            return a.isSelfDestruct ? 1 : -1;
+          }
+          return 0;
+        });
+
+        const activeBefore = players.filter(p => !p.isEliminated);
+        const remainingCount = activeBefore.length - newlyEliminated.length;
+
+        let assignPlace = remainingCount + 1;
+        newlyEliminated.forEach((p, idx) => {
+          if (idx > 0) {
+            const prev = newlyEliminated[idx - 1];
+            if (p.wordLength === prev.wordLength && p.isSelfDestruct === prev.isSelfDestruct) {
+              p.assignedRank = prev.assignedRank;
+            } else {
+              p.assignedRank = assignPlace;
+            }
+          } else {
+            p.assignedRank = assignPlace;
+          }
+          assignPlace++;
+        });
+      }
+
+      const updates = {};
+      updates["/guessedLetters"] = guessed;
+
+      newlyEliminated.forEach(p => {
+        updates[`/players/${p.id}/isEliminated`] = true;
+        updates[`/players/${p.id}/eliminatedRank`] = p.assignedRank;
+      });
+
+      const remainingActive = players.filter(p =>
+        !p.isEliminated && !newlyEliminated.some(ne => ne.id === p.id)
+      );
+
+      if (remainingActive.length <= 1) {
+        if (remainingActive.length === 1) {
+          updates[`/players/${remainingActive[0].id}/eliminatedRank`] = 1;
+          updates["/winnerId"] = remainingActive[0].id;
+        } else {
+          updates["/winnerId"] = null;
+        }
+        updates["/state"] = "result";
+        roomRef.update(updates);
+        return;
+      }
+
+      if (hitOthers && !roomData.isExtraTurn) {
+        updates["/isExtraTurn"] = true;
+        updates["/turnStartTime"] = getNow();
+      } else {
+        const nextPlayer = getNextPlayer(players, myPlayerId);
+        updates["/currentTurnPlayerId"] = nextPlayer.id;
+        updates["/isExtraTurn"] = false;
+        updates["/turn"] = (roomData.turn || 1) + 1;
+        updates["/turnStartTime"] = getNow();
+      }
+
+      roomRef.update(updates);
+    }
+
+    function handleTurnSkip() {
+      const players = Object.values(roomData.players || {});
+      players.sort((a, b) => a.order - b.order);
+
+      const nextPlayer = getNextPlayer(players, roomData.currentTurnPlayerId);
+
+      roomRef.update({
+        currentTurnPlayerId: nextPlayer.id,
+        isExtraTurn: false,
+        turn: (roomData.turn || 1) + 1,
+        turnStartTime: getNow()
+      });
+    }
+
+    function getNextPlayer(players, currentId) {
+      const activePlayers = players.filter(p => !p.isEliminated);
+      const currIdx = activePlayers.findIndex(p => p.id === currentId);
+      if (currIdx === -1) return activePlayers[0];
+      return activePlayers[(currIdx + 1) % activePlayers.length];
+    }
+
+    /* =========================================================================
+       9. リザルト & 再戦
+       ========================================================================= */
+    function renderResultScreen() {
+      showScreen("screen-result");
+      if (timerInterval) clearInterval(timerInterval);
+
+      const players = Object.values(roomData.players || {});
+      players.sort((a, b) => (a.eliminatedRank || 99) - (b.eliminatedRank || 99));
+
+      const winner = players.find(p => p.id === roomData.winnerId) || players[0];
+      const winText = document.getElementById("result-winner-text");
+      if (winner) {
+        winText.innerHTML = `${escapeHtml(winner.name)} の勝利！<br><span style="font-size:1rem; color:var(--text-main);">ワード：${escapeHtml(winner.word)}</span>`;
+      } else {
+        winText.textContent = "引き分け！";
+      }
+
+      const rankListEl = document.getElementById("result-rank-list");
+      rankListEl.innerHTML = "";
+
+      players.forEach(p => {
+        const li = document.createElement("li");
+        li.className = `result-rank-item ${p.id === roomData.winnerId ? 'winner' : ''}`;
+        li.innerHTML = `
+          <div>
+            <strong style="color:var(--gold-color);">${p.eliminatedRank || '-'}位</strong>
+            &nbsp; ${escapeHtml(p.name)}
+          </div>
+          <div style="font-family:monospace; letter-spacing:1px;">${escapeHtml(p.word)}</div>
+        `;
+        rankListEl.appendChild(li);
+      });
+
+      const myP = roomData.players[myPlayerId];
+      document.getElementById("result-my-word").textContent = myP ? myP.word : "---";
+
+      document.getElementById("result-theme").textContent = roomData.currentTheme || "";
+      document.getElementById("result-final-turn").textContent = roomData.turn || 1;
+
+      renderKanaGrid("result-kana-grid", roomData.guessedLetters || [], false, () => {});
+
+      const rematches = roomData.rematchPlayers || {};
+      const btnRematch = document.getElementById("btn-rematch");
+      if (btnRematch) {
+        btnRematch.disabled = !!rematches[myPlayerId];
+      }
+
+      const rematchListEl = document.getElementById("rematch-player-list");
+      const rematchNames = Object.keys(rematches).map(id => roomData.players[id]?.name).filter(Boolean);
+      rematchListEl.innerHTML = rematchNames.map(n => `<div>${escapeHtml(n)} が再戦準備完了</div>`).join("");
+
+      const isHost = players.length > 0 && players[0].id === myPlayerId;
+      if (rematchNames.length >= players.length && players.length > 0 && isHost) {
+        roomRef.update({
+          state: "lobby",
+          rematchPlayers: null
+        });
+      }
+    }
+
+    function clickRematch() {
+      if (!roomRef || !myPlayerId) return;
+      roomRef.child(`rematchPlayers/${myPlayerId}`).set(true);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      }[m]));
+    }
+  </script>
+</body>
+</html>
