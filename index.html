@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WordStrike!</title>
+  <title>WordStrike! - ワードストライク</title>
   
   <!-- Firebase JS SDK (Compat mode v10) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -224,13 +224,12 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.8);
     }
 
-    /* 50音キーボード */
+    /* 50音キーボード（左上から「あいうえお」順） */
     .kana-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 6px;
       margin: 16px 0;
-      direction: rtl; /* 日本語の五十音表っぽく右から左へ並べる */
     }
 
     .kana-key {
@@ -243,7 +242,6 @@
       font-weight: bold;
       cursor: pointer;
       text-align: center;
-      direction: ltr;
       position: relative;
     }
 
@@ -600,7 +598,8 @@
       "家にあるもの", "お弁当のおかず", "夏といえば", "チェーン店", "好きなもの"
     ];
 
-    const KANA_COLUMNS = [
+    // 左上から順に並ぶ50音配列（行ごと）
+    const KANA_ROWS = [
       ['あ','い','う','え','お'],
       ['か','き','く','け','こ'],
       ['さ','し','す','せ','そ'],
@@ -1164,8 +1163,8 @@
       const gridEl = document.getElementById(containerId);
       gridEl.innerHTML = "";
 
-      KANA_COLUMNS.forEach(col => {
-        col.forEach(char => {
+      KANA_ROWS.forEach(row => {
+        row.forEach(char => {
           const btn = document.createElement("button");
           btn.type = "button";
           if (!char) {
